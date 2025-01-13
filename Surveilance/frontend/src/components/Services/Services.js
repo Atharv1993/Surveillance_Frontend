@@ -10,7 +10,7 @@ const ServicesList = () => {
     <div class="services-grid">
       <div class="service-card">
         <img
-          src="https://cdn.b12.io/client_media/QfcKELDP/a47f8f7a-d0a6-11ef-8fc1-0242ac110002-jpg-hero_image.jpeg"
+          src="/images/Vehicle_Authentication.jpg"
           alt="Vehicle Authorization Dashboard"
         />
         <div class="service-card-content">
@@ -22,7 +22,7 @@ const ServicesList = () => {
       </div>
       <div class="service-card">
         <img
-          src="https://cdn.b12.io/client_media/QfcKELDP/a4df5842-d0a6-11ef-8fc1-0242ac110002-jpg-hero_image.jpeg"
+          src="/images/Intrusion_Detection.jpg"
           alt="Intrusion Detection Module"
         />
         <div class="service-card-content">
@@ -32,7 +32,7 @@ const ServicesList = () => {
       </div>
       <div class="service-card">
         <img
-          src="https://cdn.b12.io/client_media/QfcKELDP/a4b1b86a-d0a6-11ef-8fc1-0242ac110002-jpg-hero_image.jpeg"
+          src="/images/2FA.jpg"
           alt="Two-Factor Authentication"
         />
         <div class="service-card-content">

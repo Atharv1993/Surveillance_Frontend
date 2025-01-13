@@ -14,9 +14,11 @@
   
   .logo {
     color: #333;
-    font-size: 24px;
+    font-size: 28px; /* Slightly larger font size for emphasis */
     font-weight: bold;
     text-decoration: none;
+    letter-spacing: 2px; /* Adds spacing between letters for a modern look */
+    text-transform: uppercase; /* Makes the text uppercase for better visibility */
   }
   
   .nav-links {
