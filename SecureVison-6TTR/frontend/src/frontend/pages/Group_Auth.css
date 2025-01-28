@@ -1,0 +1,19 @@
+
+.Group_div video {
+    border: 2px solid #ff4500;
+    border-radius: 8px;
+    max-width: 100%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.Group_div button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #ff4500;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+.Group_div button:hover {
+    background-color: #e64a19;
+}

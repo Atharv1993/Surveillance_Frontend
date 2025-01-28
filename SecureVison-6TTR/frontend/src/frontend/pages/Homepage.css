@@ -1,0 +1,209 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter';
+  }
+  /* Navbar */
+  .navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 20px 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .logo {
+    color: #333;
+    font-size: 24px;
+    font-weight: bold;
+    text-decoration: none;
+  }
+  
+  .nav-links {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+  }
+  
+  .nav-links a:hover {
+    color: #32aa27;
+  }
+  
+  .nav-links a {
+    color: #595959;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    padding: 6px 0;
+    
+  }
+  
+  #contact-btn {
+    padding: 10px 30px;
+    border: 2px solid #000000;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: black !important;
+  }
+  
+  #contact-btn:hover {
+    background: #32aa27;
+    border: 2px solid #32aa27;
+    color: white !important;
+  }
+  
+  /* Hero Section */
+  .hero {
+    height: 90vh;
+    width: 100%;
+    position: relative;
+    background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1590388844297-db73dcfa871a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NDJ8fEluZGlhbiUyMEFybXl8ZW58MHx8MHx8fDA%3D') center/cover no-repeat;
+    background-attachment: fixed; /* Parallax effect */
+    display: flex;
+    align-items: center;
+    /* justify-content: center; */
+    padding: 0 50px;
+    color: #fff;
+  }
+  
+  .hero-content {
+    z-index: 1;
+    text-align: left;
+  }
+  
+  .hero-content h1 {
+    font-size: 56px;
+    margin-bottom: 20px;
+    line-height: 1.2;
+  }
+  
+  .hero-content p {
+    font-size: 24px;
+    margin-bottom: 30px;
+  }
+  
+  .view-services-btn {
+    display: inline-block;
+    padding: 15px 30px;
+    background: #32aa27;
+    color: #fff;
+    text-decoration: none;
+    /* border-radius: 4px; */
+    font-size: 18px;
+    transition: background 0.3s ease;
+  }
+  
+  .view-services-btn:hover {
+    background: #145f18;
+  }
+  
+  /* Services Section */
+  .services {
+    padding: 80px 50px;
+    background: #f5f5f5;
+  }
+  
+  .services-category {
+    color: #32aa27;
+    font-size: 16px;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  
+  .services-title {
+    font-size: 36px;
+    margin-bottom: 40px;
+    max-width: 800px;
+  }
+  
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    margin-top: 50px;
+  }
+  
+  .service-card1,.service-card2,.service-card3 {
+    background: white;
+    padding: 0;
+    /* border-radius: 8px; */
+    box-shadow: 0 9px 7px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: transform 0.3s ease;
+  }
+  
+  
+  
+  .service-card1 img,.service-card2 img,.service-card3 img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+  }
+  
+  .service-card-content {
+    padding: 25px;
+  }
+  
+  .service-card1 h3,.service-card2 h3,.service-card3 h3 {
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #000;
+  }
+  
+  .service-card1 p,.service-card2 p,.service-card3 p {
+    color: #666;
+    line-height: 1.6;
+  }
+  
+  .service-card1:hover,.service-card3:hover,.service-card2:hover {
+    transform: scale(1.04);
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .services-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .navbar {
+        padding: 20px;
+    }
+  
+    .nav-links {
+        display: none;
+    }
+  
+    .hero {
+        padding: 0 20px;
+    }
+  
+    .hero-content h1 {
+        font-size: 40px;
+    }
+  
+    .hero-content p {
+        font-size: 20px;
+    }
+  
+    .services {
+        padding: 60px 20px;
+    }
+  
+    .services-grid {
+        grid-template-columns: 1fr;
+    }
+  
+    .services-title {
+        font-size: 28px;
+    }
+  }
