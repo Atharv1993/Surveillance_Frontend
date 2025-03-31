@@ -8,6 +8,9 @@ from flask import Flask,Response, request, jsonify
 from flask_cors import CORS
 import csv
 from deepface import DeepFace
+import pytesseract
+import re
+import time
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -44,15 +47,177 @@ def resize_and_crop_face(img):
         return cv2.resize(face, (160, 160))
     return None
 
-@app.route('/api/ocr', methods=['GET'])
-def get_data():
-    return jsonify({'Name': 'Atharva', 'id': 71 })
+class LocalOCRScanner:
+    def __init__(self, tesseract_path, tessdata_path):
+        """Initialize scanner with local Tesseract paths."""
+        self.tesseract_path = tesseract_path
+        self.tessdata_path = tessdata_path
+        
+        # Configure Tesseract path
+        pytesseract.pytesseract.tesseract_cmd = self.tesseract_path
+        
+        # Verify Tesseract installation
+        self._verify_installation()
+    
+    def _verify_installation(self):
+        """Verify Tesseract installation and data files."""
+        if not os.path.exists(self.tesseract_path):
+            raise FileNotFoundError(f"Tesseract executable not found at: {self.tesseract_path}")
+        
+        if not os.path.exists(self.tessdata_path):
+            raise FileNotFoundError(f"Tessdata directory not found at: {self.tessdata_path}")
+            
+        eng_data = os.path.join(self.tessdata_path, 'eng.traineddata')
+        if not os.path.exists(eng_data):
+            raise FileNotFoundError(f"English language data not found at: {eng_data}")
+
+    def preprocess_image(self, frame):
+        """Preprocess image for better OCR results."""
+        # Convert to grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # Apply adaptive thresholding
+        threshold = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        
+        # Apply denoising
+        denoised = cv2.fastNlMeansDenoising(threshold)
+        
+        return denoised
+
+    def extract_uid(self, card_type, text):
+        """Extract UID and formatted name based on card type."""
+        match = None
+        # name_match = re.search(r'\b[A-Z][a-z]+\s[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\b', name)
+        # formatted_name = name_match.group(0) if name_match else None
+
+        if card_type == 1:  # Student ID
+            match = re.search(r'\b\d{9}\b', text)
+        elif card_type == 2:  # Aadhar
+            match = re.search(r'\b\d{4}\s?\d{4}\s?\d{4}\b', text)
+        elif card_type == 3:  # PAN Card
+            match = re.search(r'\b[A-Z]{5}\d{4}[A-Z]\b', text)
+        elif card_type == 4:  # Driving License
+            match = re.search(r'\b[A-Z]{2}\d{2}\s?\d{11}\b', text)
+
+        return match.group(0) if match else None
+
 
 @app.route('/api/register-face', methods=['POST'])
 def register_face():
-    ocr_data = requests.get('http://localhost:5000/api/ocr').json()
-    new_username = ocr_data['Name']
-    new_userid = str(ocr_data['id'])
+    tesseract_path = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    tessdata_path = r"C:\\Program Files\\Tesseract-OCR\\tessdata"
+    # ip_camera_url = "http://192.168.137.117:8080/video"
+
+    try:
+        # Initialize scanner
+        scanner = LocalOCRScanner(tesseract_path, tessdata_path)
+    except FileNotFoundError as e:
+        print(f"Setup Error: {str(e)}")
+        print("\nPlease ensure:")
+        print("1. Tesseract is installed from https://github.com/UB-Mannheim/tesseract/wiki")
+        print("2. The installation paths above match your system")
+        print("3. eng.traineddata is present in the tessdata directory")
+        return 
+    
+    # Initialize video capture
+    cap = cv2.VideoCapture(1)
+    
+    if not cap.isOpened():
+        print(f"Error: Could not connect to IP camera")
+        return  
+    print("Successfully connected to IP camera!")
+
+    print("Choose the type of ID card:")
+    print("1. Student ID")
+    print("2. Aadhar")
+    print("3. PAN Card")
+    print("4. Driving License")
+    
+    try:
+        card_type = int(input("Enter your choice (1-4): "))
+        if card_type not in [1, 2, 3, 4]:
+            print("Invalid choice. Please select a valid option.")
+            return
+    except ValueError:
+        print("Invalid input. Please enter a number between 1 and 4.")
+        return
+    
+    last_ocr_time = time.time()
+    ocr_interval = 1.0  # Perform OCR every 1 second
+    last_result = None
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    
+    # Configure Tesseract parameters
+    custom_config = r'--oem 3 --psm 6'
+    
+    print("\nControls:")
+    print("Press 'q' to quit")
+    print("Press 'r' to reset last detected ID")
+    print("\nScanning for ID cards...")
+
+    while True:
+        ret, frame = cap.read()
+        
+        if not ret:
+            print("Error: Failed to get frame. Attempting to reconnect...")
+            cap.release()
+            cap = cv2.VideoCapture(1)
+            time.sleep(1)
+            continue
+        
+        # Create a copy for display
+        display_frame = frame.copy()
+
+        # Perform OCR at intervals
+        current_time = time.time()
+        if current_time - last_ocr_time >= ocr_interval:
+            try:
+                # Preprocess the frame
+                processed_frame = scanner.preprocess_image(frame)
+                
+                # Perform OCR
+                text = pytesseract.image_to_string(processed_frame, config=custom_config)
+                name=''
+                print(text)
+                # Extract UID
+                result = scanner.extract_uid(card_type, text)
+                if result:
+                    if result != last_result:
+                        print(f"Found new ID: {result}")
+                    last_result = result
+            except Exception as e:
+                print(f"OCR Error: {str(e)}")
+            
+            last_ocr_time = current_time
+
+        # Display results
+        if last_result:
+            cv2.putText(display_frame, f"ID: {last_result}", (10, 30), font, 1, (0, 255, 0), 2)
+        else:
+            cv2.putText(display_frame, "Scanning...", (10, 30), font, 1, (0, 0, 255), 2)
+
+        # Add guide rectangle
+        h, w = display_frame.shape[:2]
+        cv2.rectangle(display_frame, (w//4, h//4), (3*w//4, 3*h//4), (0, 255, 0), 2)
+        
+        # Display the frame
+        cv2.imshow("ID Scanner", display_frame)
+
+        # Handle key presses
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            print("Exiting...")
+            break
+        elif key == ord('r'):
+            last_result = None
+            print("Reset - scanning for new ID...")
+
+    cap.release()
+    cv2.destroyAllWindows()
+    new_username = "Yash"
+    new_userid = last_result
     
     if new_username and new_userid:
         img_count =0
@@ -262,10 +427,10 @@ def stop_video():
     stop_video_flag = True
     return jsonify({"message": "Video feed stopped!"})
 
+
 @app.route('/api/start_video', methods=['POST'])
 def start_video():
-    global stop_video_flag
-    stop_video_flag = False
+    # Logic to start the video feed (e.g., initializing camera)
     return jsonify({"message": "Video feed started successfully"})
 
 @app.route('/api/group_markattendance', methods=['POST'])

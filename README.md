@@ -16,4 +16,12 @@ pip install joblib
 pip install deepface
 pip install tf-keras
 
+
+#faiss & mongo installations 
+pip install faiss-cpu facenet-pytorch pymilvus torch torchvision gunicorn
+pip install pytesseract
+pip install pymongo[srv] pillow
+
+
+
 5. run app.py

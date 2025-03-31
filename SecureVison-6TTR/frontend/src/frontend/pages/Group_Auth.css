@@ -1,19 +1,46 @@
-
-.Group_div video {
-    border: 2px solid #ff4500;
+.Group_div {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #e6f0e6, #cce0cc); /* Soft green gradient */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', sans-serif;
+    padding: 30px;
+  }
+  
+  /* Title */
+  .Group_div h1 {
+    font-size: 28px;
+    color: #2e7d32;
+    margin-bottom: 20px;
+  }
+  
+  /* Video Feed */
+  #video-feed {
     border-radius: 8px;
-    max-width: 100%;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-.Group_div button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    background-color: #ff4500;
+    width: 80%;
+    max-width: 720px;
+    height: auto;
+    border: 3px solid #66bb6a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    margin-bottom: 25px;
+  }
+  
+  /* Buttons */
+  .Group_div button {
+    background-color: #66bb6a;
     color: white;
     border: none;
+    padding: 10px 18px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-}
-.Group_div button:hover {
-    background-color: #e64a19;
-}
+    margin: 8px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .Group_div button:hover {
+    background-color: #57a05c;
+  }
+  

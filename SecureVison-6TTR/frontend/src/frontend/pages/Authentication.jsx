@@ -29,7 +29,7 @@ const Authentication = () => {
       const response = await axios.post('http://127.0.0.1:5000/api/Authenticate', { data: 1 });
       
       if (response.data.success) {
-        window.alert(response.data.status);
+        window.alert(`${response.data.status}, Its ${response.data.name}_${response.data.roll}`);
       } else {
         window.alert(response.data.status || 'Authentication failed');
       }
