@@ -276,3 +276,106 @@
   color: rgb(134, 8, 8);
   margin-bottom: 12px;
 }
+
+
+/* Dropdown box styling */
+.id-selection-box {
+  margin-bottom: 20px;
+}
+
+.id-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.id-select {
+  padding: 8px 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+}
+
+.webcam-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.webcam-feed {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.popup-actions button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.id-selection-box {
+  margin-bottom: 20px;
+}
+
+.id-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.id-select {
+  padding: 8px 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+}
+
+.webcam-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.webcam-feed {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+}
+
+.popup-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.popup-actions button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.id-selection-box {
+  margin-bottom: 20px;
+}
+
+.id-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.id-select {
+  padding: 8px 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  outline: none;
+}

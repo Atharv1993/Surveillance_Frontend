@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, jsonify, request
+from flask import Blueprint, Response, jsonify
 import cv2
 import faiss
 import numpy as np
@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 from datetime import datetime
 from deepface import DeepFace
-from modules.ocr_service import extract_ocr_data
+from modules.ocr_service import capture_image_from_ipwebcam, extract_ocr_data
 
 #Mongo Connection
 from pymongo import MongoClient
@@ -81,36 +81,20 @@ def extract_face_embedding(image):
 
 
 
-@face_recognition_bp.route('/api/extract-id', methods=['POST'])
-def extract_id():
-    data = request.json
-    id_type = data.get("id_type")  # Accept id_type as input
-    id_image_base64 = data.get("id_image")  # Captured ID as base64
+@face_recognition_bp.route('/api/ocr', methods=['GET'])
+def get_data():
+    return jsonify({'Name': 'Atharv', 'id':119})
 
-    # Decode Base64 ID Image
-    if id_image_base64:
-        img_data = base64.b64decode(id_image_base64)
-        nparr = np.frombuffer(img_data, np.uint8)
-        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    else:
-        return jsonify({'success': False, 'message': 'No ID image provided'})
-
-    # Continue with existing OCR and face registration logic
-    ocr_data = extract_ocr_data(frame, id_type)
-    new_username = ocr_data["name"]
-    new_userid = str(ocr_data["id"])
-    
-    return jsonify({"success": True, "name": new_username, "roll": new_userid})
 
 @face_recognition_bp.route('/api/register-face', methods=['POST'])
 def register_face():
-    data = request.json
-    new_username = data.get("name")  # Accept id_type as input
-    new_userid = data.get("roll")  # Captured ID as base64
-    id_type = data.get("id_type")
-    
+    # Get OCR Data (Replace with real OCR API in production)
+    ocr_data = requests.get('http://localhost:5000/api/ocr').json()
+    new_username = ocr_data['Name']
+    new_userid = str(ocr_data['id'])
+
     if not new_username or not new_userid:
-        return jsonify({'success': False, 'message': 'Invalid user during face details'})
+        return jsonify({'success': False, 'message': 'Invalid user details'})
 
     # Capture image
     cap = cv2.VideoCapture(0)
@@ -145,8 +129,7 @@ def register_face():
     face_collection.insert_one({
         "face_id": new_userid,
         "name": new_username,
-        "image": img_base64,
-        "id_type": id_type
+        "image": img_base64
         # "embedding": embedding.tolist()  # Optional if needed for backup
     })
 
@@ -158,9 +141,7 @@ def register_face():
 
 @face_recognition_bp.route("/api/Authenticate", methods=["POST"])
 def authenticate():
-    
-
-    # Capture face for face recognition
+    # Capture image
     cap = cv2.VideoCapture(0)
     ret, frame = cap.read()
     cap.release()
@@ -182,6 +163,7 @@ def authenticate():
     # Perform FAISS search
     D, I = faiss_index.search(np.array([embedding], dtype=np.float32), k=1)
     
+    print(f"Distance: {D[0][0]}, Index: {I[0][0]}")  # Debugging info
 
     if D[0][0] > 0.6:  # Adjusted threshold
         recognized_key = list(embeddings_db.keys())[I[0][0]]

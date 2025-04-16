@@ -107,3 +107,14 @@ def extract_college_id_data(ocr_text):
             break
 
     return {"name": name, "id": roll_number}
+
+# Load the test image manually
+image_path ="C:/Users/Atharva/OneDrive/Pictures/Screenshots/test2.jpg"  # Replace with your test image path
+frame = cv2.imread(image_path)
+
+if frame is None:
+    print("Error: Image not found or path incorrect.")
+    exit()
+
+processed_img = extract_ocr_data(frame, 'license')
+print(processed_img)
