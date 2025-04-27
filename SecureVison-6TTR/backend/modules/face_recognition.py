@@ -28,7 +28,7 @@ face_collection = db["face_metadata"]
 
 
 # Directories
-face_db_path = "face_db"
+#face_db_path = "face_db"
 attendance_directory = "Attendance"
 if not os.path.exists(attendance_directory):
     os.makedirs(attendance_directory)
@@ -95,7 +95,6 @@ def extract_id():
     else:
         return jsonify({'success': False, 'message': 'No ID image provided'})
 
-    # Continue with existing OCR and face registration logic
     ocr_data = extract_ocr_data(frame, id_type)
     new_username = ocr_data["name"]
     new_userid = str(ocr_data["id"])
@@ -105,14 +104,14 @@ def extract_id():
 @face_recognition_bp.route('/api/register-face', methods=['POST'])
 def register_face():
     data = request.json
-    new_username = data.get("name")  # Accept id_type as input
-    new_userid = data.get("roll")  # Captured ID as base64
+    new_username = data.get("name").upper()  
+    new_userid = data.get("roll")  
     id_type = data.get("id_type")
     
     if not new_username or not new_userid:
         return jsonify({'success': False, 'message': 'Invalid user during face details'})
 
-    # Capture image
+    # Capturing image
     cap = cv2.VideoCapture(0)
     ret, frame = cap.read()
     cap.release()
@@ -147,7 +146,7 @@ def register_face():
         "name": new_username,
         "image": img_base64,
         "id_type": id_type
-        # "embedding": embedding.tolist()  # Optional if needed for backup
+        # "embedding": embedding.tolist()  # Optional: Store embedding in MongoDB if needed
     })
 
 
@@ -158,7 +157,17 @@ def register_face():
 
 @face_recognition_bp.route("/api/Authenticate", methods=["POST"])
 def authenticate():
-    
+    data = request.json
+    new_username = data.get("name")
+    new_username=new_username.strip().upper().replace("  ", " ")
+
+    new_userid = data.get("roll").strip()
+    id_type = data.get("id_type")   
+
+    key = f"{new_username}_{new_userid}"
+    # Check if the name and roll combination exists in the database
+    if key not in embeddings_db:
+        return jsonify({"success": False, "message": "User not found"})
 
     # Capture face for face recognition
     cap = cv2.VideoCapture(0)

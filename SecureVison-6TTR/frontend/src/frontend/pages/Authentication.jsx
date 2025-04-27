@@ -6,31 +6,23 @@ import "./Autentication.css";
 const Authentication = () => {
   const navigate = useNavigate();
 
-  const [idType, setIdType] = useState("aadhar"); // To store selected ID type
-  const [cameraPopupOpen, setCameraPopupOpen] = useState(false); // Open/close the webcam popup
-  const [capturedIdImage, setCapturedIdImage] = useState(null); // Store the captured ID image
+  const [idType, setIdType] = useState("aadhar");
+  const [cameraPopupOpen, setCameraPopupOpen] = useState(false);
+  const [capturedIdImage, setCapturedIdImage] = useState(null);
   const [ocrPopupOpen, setOcrPopupOpen] = useState(false);
   const [ocrData, setOcrData] = useState({ name: "", roll: "" });
-  const [proceedToFaceReg, setProceedToFaceReg] = useState(false); // Trigger face registration
-
-  useEffect(() => {
-    if (proceedToFaceReg && capturedIdImage) {
-      handleRegister(); // Trigger face registration after capturing ID
-      setProceedToFaceReg(false); // Reset state after registration
-    }
-  }, [proceedToFaceReg, capturedIdImage]);
-
+  const [proceedToFaceReg, setProceedToFaceReg] = useState(false);
   const [popupOpen, setPopupOpen] = useState(false);
   const [attendancePopupOpen, setAttendancePopupOpen] = useState(false);
   const [registrationResult, setRegistrationResult] = useState({
     userName: "",
     userImages: 0,
   });
-
-  const Ipwebcam="http://192.168.105.181:8080/shot.jpg"
-
   const [isLoading, setIsLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState([]);
+  const [authMode, setAuthMode] = useState(false); // false for Register, true for Authenticate
+
+  const Ipwebcam = "http://192.168.105.181:8080/shot.jpg";
 
   const instructionSteps = [
     "Ensure you are in a well-lit area with minimal background noise",
@@ -40,31 +32,16 @@ const Authentication = () => {
     "Avoid wearing hats or sunglasses",
   ];
 
-  const handleAuth = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.post(
-        "http://127.0.0.1:5000/api/Authenticate",
-        {
-          id_type: idType, // Send selected ID type
-          id_image: capturedIdImage, // Send captured ID for verification
-        }
-      );
-
-      if (response.data.success) {
-        window.alert(
-          `${response.data.status}, It's ${response.data.name}_${response.data.roll}`
-        );
+  useEffect(() => {
+    if (proceedToFaceReg && capturedIdImage) {
+      if (authMode) {
+        handleAuth();
       } else {
-        window.alert(response.data.message || "Authentication failed");
+        handleRegister();
       }
-    } catch (error) {
-      console.error("Authentication error:", error);
-      window.alert("Authentication failed due to a server error");
-    } finally {
-      setIsLoading(false);
+      setProceedToFaceReg(false);
     }
-  };
+  }, [proceedToFaceReg, capturedIdImage]);
 
   const handleCaptureID = async () => {
     try {
@@ -72,22 +49,20 @@ const Authentication = () => {
         responseType: "arraybuffer",
       });
       const base64Image = btoa(
-        new Uint8Array(response.data).reduce((data, byte) => data + String.fromCharCode(byte), "")
+        new Uint8Array(response.data).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
       );
 
-      setCapturedIdImage(base64Image); // Store captured image
-      setCameraPopupOpen(false); // Close the popup
-      // setProceedToFaceReg(true); // Proceed to face registration
-
-      // Call OCR API
+      setCapturedIdImage(base64Image);
+      setCameraPopupOpen(false);
       handleOCR(base64Image);
-
     } catch (error) {
       console.error("Error capturing ID card:", error);
       window.alert("Failed to capture ID card. Please try again.");
     }
   };
-  
 
   const handleOCR = async (image) => {
     try {
@@ -110,14 +85,11 @@ const Authentication = () => {
 
   const handleRegister = async () => {
     try {
-      const response = await axios.post(
-        "http://127.0.0.1:5000/api/register-face",
-        {
-          id_type: idType, // Send ID type
-          name: ocrData.name,
-          roll: ocrData.roll,
-        }
-      );
+      const response = await axios.post("http://127.0.0.1:5000/api/register-face", {
+        id_type: idType,
+        name: ocrData.name,
+        roll: ocrData.roll,
+      });
 
       if (response.data.success) {
         setRegistrationResult({
@@ -134,17 +106,38 @@ const Authentication = () => {
     }
   };
 
+  const handleAuth = async () => {
+    setIsLoading(true);
+    try {
+      const response = await axios.post("http://127.0.0.1:5000/api/Authenticate", {
+        id_type: idType,
+        name: ocrData.name,
+        roll: ocrData.roll,
+      });
+
+      if (response.data.success) {
+        window.alert(
+          `${response.data.status}, It's ${response.data.name}_${response.data.roll}`
+        );
+      } else {
+        window.alert(response.data.message || "Authentication failed");
+      }
+    } catch (error) {
+      console.error("Authentication error:", error);
+      window.alert("Authentication failed due to a server error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGroupAuth = () => {
     navigate("/group_auth");
   };
 
   const fetchTodaysAttendance = async () => {
     try {
-      const response = await axios.get(
-        "http://127.0.0.1:5000/api/todayattendance"
-      );
+      const response = await axios.get("http://127.0.0.1:5000/api/todayattendance");
 
-      console.log(response.data.attendance);
       if (response.data.success) {
         setAttendanceData(response.data.attendance);
         setAttendancePopupOpen(true);
@@ -164,12 +157,8 @@ const Authentication = () => {
     <div className="root">
       <div className="id-card-container">
         <div className="navigation-buttons">
-          <button onClick={handleGoBack} className="back-btn">
-            ◀
-          </button>
-          <button onClick={handleGoHome} className="home-btn">
-            🏠︎
-          </button>
+          <button onClick={handleGoBack} className="back-btn">◀</button>
+          <button onClick={handleGoHome} className="home-btn">🏠︎</button>
         </div>
 
         <h2 className="title">AUTHENTICATION PROCESS</h2>
@@ -186,13 +175,19 @@ const Authentication = () => {
         <div className="button-container">
           <button
             className="register-btn"
-            onClick={() => setCameraPopupOpen(true)}
+            onClick={() => {
+              setAuthMode(false);
+              setCameraPopupOpen(true);
+            }}
           >
             Register
           </button>
           <button
             className="authenticate-btn"
-            onClick={handleAuth}
+            onClick={() => {
+              setAuthMode(true);
+              setCameraPopupOpen(true);
+            }}
             disabled={isLoading}
           >
             {isLoading ? "Authenticating..." : "Authenticate"}
@@ -211,10 +206,7 @@ const Authentication = () => {
         <div className="popup-overlay">
           <div className="popup-content">
             <h2>Face Registration Successful</h2>
-            <p>
-              {registrationResult.userName}'s faces have been successfully
-              stored.
-            </p>
+            <p>{registrationResult.userName}'s faces have been successfully stored.</p>
             <p>Number of images captured: {registrationResult.userImages}</p>
             <button onClick={() => setPopupOpen(false)}>Close</button>
           </div>
@@ -256,12 +248,8 @@ const Authentication = () => {
         <div className="popup-overlay">
           <div className="popup-content">
             <h2>Select ID Type and Capture ID Card</h2>
-
-            {/* ID Type Selection */}
             <div className="id-selection-box">
-              <label htmlFor="idType" className="id-label">
-                Select ID Type:
-              </label>
+              <label htmlFor="idType" className="id-label">Select ID Type:</label>
               <select
                 id="idType"
                 value={idType}
@@ -274,16 +262,10 @@ const Authentication = () => {
               </select>
             </div>
 
-            {/* IP Webcam Feed */}
             <div className="webcam-container">
-              <img
-                src={`${Ipwebcam}`} // Replace <YOUR_IP> with your phone IP
-                alt="Webcam Feed"
-                className="webcam-feed"
-              />
+              <img src={`${Ipwebcam}`} alt="Webcam Feed" className="webcam-feed" />
             </div>
 
-            {/* Capture and Cancel Buttons */}
             <div className="popup-actions">
               <button onClick={handleCaptureID}>Capture ID Card</button>
               <button onClick={() => setCameraPopupOpen(false)}>Cancel</button>
@@ -309,12 +291,16 @@ const Authentication = () => {
               value={ocrData.roll}
               onChange={(e) => setOcrData({ ...ocrData, roll: e.target.value })}
             />
-            <button onClick={() => setProceedToFaceReg(true)&&setOcrPopupOpen(false)}>Confirm & Register</button>
+            <button onClick={() => {
+              setOcrPopupOpen(false);
+              setProceedToFaceReg(true);
+            }}>
+              Confirm & {authMode ? "Authenticate" : "Register"}
+            </button>
             <button onClick={() => setOcrPopupOpen(false)}>Cancel</button>
           </div>
         </div>
       )}
-
     </div>
   );
 };
