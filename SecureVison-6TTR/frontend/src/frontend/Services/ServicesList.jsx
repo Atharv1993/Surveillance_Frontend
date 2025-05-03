@@ -1,12 +1,15 @@
-import React from 'react'
-import { useNavigate } from 'react-router-dom'
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const ServicesList = () => {
   const navigate = useNavigate();
 
   const handleAuthenticationClick = () => {
-    navigate('/authentication');
+    navigate("/authentication");
   };
+  const handleVehicleClick = () => {
+    navigate("/vehicle");
+  }
 
   return (
     <div>
@@ -16,7 +19,7 @@ const ServicesList = () => {
           Secure, efficient, and tailored for the Indian army
         </h2>
         <div className="services-grid">
-          <div className="service-card1">
+          <div className="service-card1" onClick={handleVehicleClick}>
             <img
               src="/images/Vehicle_Authentication.jpg"
               alt="Vehicle Authorization Dashboard"
@@ -28,7 +31,7 @@ const ServicesList = () => {
               </p>
             </div>
           </div>
-          <div className="service-card2">
+          <div className="service-card2" >
             <img
               src="/images/Intrusion_Detection.jpg"
               alt="Intrusion Detection Module"
@@ -38,14 +41,8 @@ const ServicesList = () => {
               <p>Stay alert with advanced intrusion detection capabilities.</p>
             </div>
           </div>
-          <div 
-            className="service-card3" 
-            onClick={handleAuthenticationClick}
-          >
-            <img
-              src="/images/2FA.jpg"
-              alt="Two-Factor Authentication"
-            />
+          <div className="service-card3" onClick={handleAuthenticationClick}>
+            <img src="/images/2FA.jpg" alt="Two-Factor Authentication" />
             <div className="service-card-content">
               <h3>Two-Factor Authentication</h3>
               <p>Enhance security with two-factor authentication methods.</p>
@@ -54,7 +51,7 @@ const ServicesList = () => {
         </div>
       </section>
     </div>
-  )
-}
+  );
+};
 
-export default ServicesList
+export default ServicesList;
