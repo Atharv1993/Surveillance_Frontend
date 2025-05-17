@@ -11,10 +11,10 @@ const Group_Auth = () => {
   // Function to start the video feed
   const startVideoFeed = () => {
     axios
-      .post("http://localhost:5000/api/start_video")
+      .post("http://localhost:5000/face_recog/start_video")
       .then(() => {
         // Append timestamp to force reload and prevent caching
-        setVideoSrc(`http://localhost:5000/api/video_feed?timestamp=${new Date().getTime()}`);
+        setVideoSrc(`http://localhost:5000/face_recog/video_feed?timestamp=${new Date().getTime()}`);
       })
       .catch((error) => {
         console.error("Error starting video feed:", error);
@@ -23,7 +23,7 @@ const Group_Auth = () => {
 
   const markAttendance = () => {
     axios
-      .post("http://localhost:5000/api/group_markattendance")
+      .post("http://localhost:5000/face_recog/group_markattendance")
       .then((response) => {
         alert(response.data.message);
       })
@@ -34,16 +34,19 @@ const Group_Auth = () => {
 
   const stopVideoFeed = () => {
     axios
-      .post("http://localhost:5000/api/stop_video")
+      .post("http://localhost:5000/face_recog/stop_video")
       .then((response) => {
         alert(response.data.message);
         setVideoSrc(""); // Clear video source
-        navigate("/authentication"); // Navigate to another page
+        // navigate("/authentication"); // Navigate to another page
       })
       .catch((error) => {
         console.error("Error stopping video feed:", error);
       });
   };
+
+  const handleGoBack = () => navigate(-1);
+  const handleGoHome = () => navigate("/");
 
   // Start video feed when the component mounts
   useEffect(() => {
@@ -56,10 +59,24 @@ const Group_Auth = () => {
 
   return (
     <div className="Group_div">
+      {/* Navigation buttons */}
+      <div className="navigation-buttons">
+        <button onClick={handleGoBack} className="back-btn">◀</button>
+        <button onClick={handleGoHome} className="home-btn">🏠︎</button>
+      </div>
+      
       <h1>Group Recognition</h1>
-      <img id="video-feed" src={videoSrc} alt="Live Video Feed" />
-      <button onClick={markAttendance}>Mark Attendance</button>
-      <button onClick={stopVideoFeed}>Stop Video Feed</button>
+      
+      {videoSrc ? (
+        <img id="video-feed" src={videoSrc} alt="Live Video Feed" />
+      ) : (
+        <div className="video-loading">Loading video feed...</div>
+      )}
+      
+      <div className="button-container">
+        <button onClick={markAttendance}>Mark Attendance</button>
+        <button onClick={stopVideoFeed}>Stop Video Feed</button>
+      </div>
     </div>
   );
 };

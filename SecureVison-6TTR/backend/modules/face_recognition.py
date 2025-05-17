@@ -19,7 +19,7 @@ from deepface import DeepFace
 from modules.ocr_service import extract_ocr_data
 from modules.camera_manager.camera_manager import camera_manager
 
-#Mongo Connection
+# MongoDB Connection
 from pymongo import MongoClient
 from bson.binary import Binary
 import base64
@@ -32,6 +32,7 @@ MONGO_URI = "mongodb://localhost:27017"
 client = MongoClient(MONGO_URI)
 db = client["Smart_Surveillance"]
 face_collection = db["face_metadata"]
+embeddings_collection = db["face_embeddings"]  # New collection for embeddings
 
 # Directories
 attendance_directory = "Attendance"
@@ -43,18 +44,31 @@ embedding_dim = 512
 faiss_index = faiss.IndexFlatIP(embedding_dim)
 embeddings_db = {}
 
-embeddings_file = "embeddings.json"
-
-# Load stored embeddings if available
-if os.path.exists(embeddings_file):
-    with open(embeddings_file, "r") as f:
-        embeddings_db = json.load(f)
-
-    if embeddings_db:
+# Load stored embeddings from MongoDB
+def load_embeddings_from_mongodb():
+    global embeddings_db, faiss_index
+    
+    # Reset the FAISS index
+    faiss_index = faiss.IndexFlatIP(embedding_dim)
+    embeddings_db = {}
+    
+    # Fetch all embeddings from MongoDB
+    all_embeddings = list(embeddings_collection.find())
+    
+    if all_embeddings:
+        for embed_doc in all_embeddings:
+            user_key = f"{embed_doc['name']}_{embed_doc['face_id']}"
+            embedding = np.array(embed_doc['embedding'], dtype=np.float32)
+            embeddings_db[user_key] = embedding.tolist()
+        
+        # Add embeddings to FAISS index
         stored_embeddings = np.array(list(embeddings_db.values()), dtype=np.float32)
         faiss_index.add(stored_embeddings)
+    
+    print(f"Loaded {len(embeddings_db)} embeddings from MongoDB into FAISS.")
 
-print(f"Loaded {len(embeddings_db)} embeddings into FAISS.")
+# Load embeddings at startup
+load_embeddings_from_mongodb()
 
 # Thread lock for video feed
 video_lock = threading.Lock()
@@ -93,7 +107,7 @@ def extract_face_embedding(image):
         print(f"Face embedding extraction error after all attempts: {e}")
         return None
 
-@face_recognition_bp.route('/api/extract-id', methods=['POST'])
+@face_recognition_bp.route('/extract-id', methods=['POST'])
 def extract_id():
     data = request.json
     id_type = data.get("id_type")  # Accept id_type as input
@@ -113,7 +127,7 @@ def extract_id():
     
     return jsonify({"success": True, "name": new_username, "roll": new_userid})
 
-@face_recognition_bp.route('/api/register-face', methods=['POST'])
+@face_recognition_bp.route('/register-face', methods=['POST'])
 def register_face():
     data = request.json
     new_username = data.get("name", "").upper()  
@@ -139,17 +153,22 @@ def register_face():
     if embedding is None:
         return jsonify({'success': False, 'message': 'No face detected'})
 
-    # Save embedding in FAISS
+    # Save embedding in FAISS and MongoDB
     user_key = f"{new_username}_{new_userid}"
     if user_key in embeddings_db:
         return jsonify({'success': False, 'message': 'User already registered'})
 
+    # Update FAISS index
     faiss_index.add(np.array([embedding], dtype=np.float32))
-    embeddings_db[user_key] = embedding.tolist()  # Convert NumPy array to list for JSON
-
-    # Save embeddings to JSON
-    with open(embeddings_file, "w") as f:
-        json.dump(embeddings_db, f, indent=4)
+    embeddings_db[user_key] = embedding.tolist()
+    
+    # Store embedding in MongoDB
+    embeddings_collection.insert_one({
+        "face_id": new_userid,
+        "name": new_username,
+        "embedding": embedding.tolist(),  # Store the embedding list
+        "created_at": datetime.now()
+    })
 
     # Convert Image to Base64 for MongoDB storage
     _, buffer = cv2.imencode(".jpg", frame)
@@ -168,7 +187,7 @@ def register_face():
     return jsonify({'success': True, 'userName': new_username})
 
 
-@face_recognition_bp.route("/api/Authenticate", methods=["POST"])
+@face_recognition_bp.route("/Authenticate", methods=["POST"])
 def authenticate():
     data = request.json
     new_username = data.get("name", "")
@@ -223,7 +242,7 @@ def authenticate():
     return jsonify({"success": False, "message": "Face not recognized"})
 
 
-@face_recognition_bp.route("/api/todayattendance", methods=["GET"])
+@face_recognition_bp.route("/todayattendance", methods=["GET"])
 def get_todays_attendance():
     try:
         attendance_file = f"{attendance_directory}/Attendance-{get_date_today()}.csv"
@@ -331,14 +350,14 @@ def generate_video_feed():
             camera_manager.release_camera()
 
 
-@face_recognition_bp.route("/api/video_feed")
+@face_recognition_bp.route("/video_feed")
 def video_feed():
     global stop_video_flag
     stop_video_flag = False
     return Response(generate_video_feed(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-@face_recognition_bp.route("/api/stop_video", methods=["POST"])
+@face_recognition_bp.route("/stop_video", methods=["POST"])
 def stop_video():
     global stop_video_flag
     stop_video_flag = True
@@ -348,14 +367,14 @@ def stop_video():
     return jsonify({"message": "Video feed stopped!"})
 
 
-@face_recognition_bp.route('/api/start_video', methods=['POST'])
+@face_recognition_bp.route('/start_video', methods=['POST'])
 def start_video():
     global stop_video_flag
     stop_video_flag = False
     return jsonify({"message": "Video feed started successfully"})
 
 
-@face_recognition_bp.route('/api/group_markattendance', methods=['POST'])
+@face_recognition_bp.route('/group_markattendance', methods=['POST'])
 def group_markattendance():
     global recognized_faces
     if not recognized_faces:
@@ -371,3 +390,129 @@ def group_markattendance():
         "success": True, 
         "message": f"Attendance marked for {count} detected faces."
     })
+
+# --------------------------------------------------------------------------------------------------------
+# DashBoard Routes
+from datetime import datetime, timedelta
+import numpy as np
+from bson.objectid import ObjectId
+
+# Route to get all face records
+@face_recognition_bp.route("/records", methods=["GET"])
+def get_face_records():
+    try:
+        # Get all face metadata from MongoDB
+        faces = list(face_collection.find())
+        
+        # Convert ObjectId to string and binary face image to base64
+        for face in faces:
+            face["_id"] = str(face["_id"])
+            if "face_image" in face and face["face_image"]:
+                face["face_image"] = base64.b64encode(face["face_image"]).decode("utf-8")
+        
+        return jsonify(faces), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to get face recognition stats
+@face_recognition_bp.route("/stats", methods=["GET"])
+def get_face_stats():
+    try:
+        # Get total records
+        total_records = face_collection.count_documents({})
+        
+        # Get attendance today (count faces detected today)
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        attendance_today = face_collection.count_documents({
+            "last_detected": {"$gte": today}
+        })
+        
+        # Count known faces (where name is not "Unknown")
+        known_faces = face_collection.count_documents({
+            "name": {"$ne": "Unknown"}
+        })
+        
+        # Count unknown faces
+        unknown_faces = face_collection.count_documents({
+            "name": "Unknown"
+        })
+        
+        stats = {
+            "totalRecords": total_records,
+            "attendanceToday": attendance_today,
+            "knownFaces": known_faces,
+            "unknownFaces": unknown_faces
+        }
+        
+        return jsonify(stats), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to delete a face record
+@face_recognition_bp.route("/delete/<id>", methods=["DELETE"])
+def delete_face_record(id):
+    try:
+        # Get the face record first
+        face_record = face_collection.find_one({"_id": ObjectId(id)})
+        if not face_record:
+            return jsonify({"error": "Face record not found"}), 404
+        
+        # Delete from face_collection
+        face_collection.delete_one({"_id": ObjectId(id)})
+        
+        # Also delete from embeddings_collection if it exists
+        # First, retrieve the face_id
+        face_id = face_record.get("face_id")
+        name = face_record.get("name")
+        
+        if face_id and name:
+            # Delete from embeddings collection
+            embeddings_collection.delete_one({
+                "name": name,
+                "face_id": face_id
+            })
+            
+            # Reload FAISS index
+            load_embeddings_from_mongodb()
+        
+        return jsonify({"message": "Face record deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to update a face record
+@face_recognition_bp.route("/update/<id>", methods=["PUT"])
+def update_face_record(id):
+    try:
+        data = request.json
+        
+        # Get the current record
+        current_record = face_collection.find_one({"_id": ObjectId(id)})
+        if not current_record:
+            return jsonify({"error": "Face record not found"}), 404
+        
+        # Update fields
+        update_data = {}
+        if "name" in data:
+            update_data["name"] = data["name"]
+        if "role" in data:
+            update_data["role"] = data["role"]
+        
+        # Update in face_collection
+        face_collection.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": update_data}
+        )
+        
+        # If name was updated, also update in embeddings_collection
+        if "name" in data and current_record.get("face_id"):
+            embeddings_collection.update_one(
+                {"face_id": current_record["face_id"]},
+                {"$set": {"name": data["name"]}}
+            )
+            
+            # Reload FAISS index 
+            load_embeddings_from_mongodb()
+        
+        return jsonify({"message": "Face record updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

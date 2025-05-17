@@ -66,7 +66,7 @@ const Authentication = () => {
 
   const handleOCR = async (image) => {
     try {
-      const response = await axios.post("http://127.0.0.1:5000/api/extract-id", {
+      const response = await axios.post("http://127.0.0.1:5000/face_recog/extract-id", {
         id_type: idType,
         id_image: image,
       });
@@ -85,7 +85,7 @@ const Authentication = () => {
 
   const handleRegister = async () => {
     try {
-      const response = await axios.post("http://127.0.0.1:5000/api/register-face", {
+      const response = await axios.post("http://127.0.0.1:5000/face_recog/register-face", {
         id_type: idType,
         name: ocrData.name,
         roll: ocrData.roll,
@@ -109,7 +109,7 @@ const Authentication = () => {
   const handleAuth = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.post("http://127.0.0.1:5000/api/Authenticate", {
+      const response = await axios.post("http://127.0.0.1:5000/face_recog/Authenticate", {
         id_type: idType,
         name: ocrData.name,
         roll: ocrData.roll,
@@ -136,7 +136,7 @@ const Authentication = () => {
 
   const fetchTodaysAttendance = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:5000/api/todayattendance");
+      const response = await axios.get("http://127.0.0.1:5000/face_recog/todayattendance");
 
       if (response.data.success) {
         setAttendanceData(response.data.attendance);

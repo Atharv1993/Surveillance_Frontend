@@ -1,0 +1,330 @@
+import React, { useState, useEffect } from 'react';
+import Navbar from '../../frontend/Navbar/Navbar';
+import './Dashboard.css';
+
+const VehicleRecordsDashboard = () => {
+  const [vehicleRecords, setVehicleRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [recordsPerPage] = useState(10);
+  const [stats, setStats] = useState({
+    totalVehicles: 0,
+    registeredVehicles: 0,
+    unregisteredVehicles: 0,
+    detectedToday: 0
+  });
+
+  useEffect(() => {
+    fetchVehicleRecords();
+    fetchVehicleStats();
+  }, []);
+
+  const fetchVehicleRecords = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/vehicle_plate/records');
+      if (!response.ok) {
+        throw new Error('Failed to fetch vehicle records');
+      }
+      const data = await response.json();
+      setVehicleRecords(data);
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
+  const fetchVehicleStats = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/vehicle_plate/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch vehicle stats');
+      }
+      const data = await response.json();
+      setStats(data);
+    } catch (err) {
+      console.error('Error fetching vehicle stats:', err);
+    }
+  };
+
+  const handleDeleteRecord = async (id) => {
+    if (window.confirm('Are you sure you want to delete this vehicle record?')) {
+      try {
+        const response = await fetch(`http://localhost:5000/vehicle_plate/delete/${id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete record');
+        }
+
+        // Refresh the records and stats
+        fetchVehicleRecords();
+        fetchVehicleStats();
+        alert('Vehicle record deleted successfully');
+      } catch (err) {
+        alert(`Error deleting record: ${err.message}`);
+      }
+    }
+  };
+
+  const handleUpdateRecord = async (id, updatedData) => {
+    try {
+      const response = await fetch(`http://localhost:5000/vehicle_plate/update/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update record');
+      }
+
+      // Refresh the records
+      fetchVehicleRecords();
+      alert('Vehicle record updated successfully');
+    } catch (err) {
+      alert(`Error updating record: ${err.message}`);
+    }
+  };
+
+  // Filtering based on search term - updated to match backend field names
+  const filteredRecords = vehicleRecords.filter(record => 
+    (record.plate_number && record.plate_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (record.owner && record.owner.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (record.model && record.model.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  // Pagination
+  const indexOfLastRecord = currentPage * recordsPerPage;
+  const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
+  const currentRecords = filteredRecords.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editForm, setEditForm] = useState({
+    owner: '',
+    model: '',
+    authorized: false
+  });
+
+  const startEditing = (record) => {
+    setEditingRecord(record._id);
+    setEditForm({
+      owner: record.owner || '',
+      model: record.model || '',
+      authorized: record.authorized || false
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingRecord(null);
+  };
+
+  const saveEdit = (id) => {
+    // Map form field names to backend field names
+    const updatedData = {
+      owner_name: editForm.owner,  // Match backend field name
+      vehicle_model: editForm.model,  // Match backend field name
+      authorized: editForm.authorized
+    };
+    handleUpdateRecord(id, updatedData);
+    setEditingRecord(null);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setEditForm({
+      ...editForm,
+      [name]: type === 'checkbox' ? checked : value
+    });
+  };
+
+  // Helper function to format date safely
+  const formatDate = (dateString) => {
+    if (!dateString) {
+      return 'Not Available';
+    }
+    try {
+      return new Date(dateString).toLocaleString()
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
+  return (
+    <div>
+      <Navbar />
+      <div className="dashboard-container">
+        <h1>Vehicle Records Dashboard</h1>
+
+        <div className="stats-container">
+          <div className="stat-card">
+            <h3>Total Vehicles</h3>
+            <p>{stats.totalVehicles}</p>
+          </div>
+          <div className="stat-card">
+            <h3>Registered Vehicles</h3>
+            <p>{stats.registeredVehicles}</p>
+          </div>
+          <div className="stat-card">
+            <h3>Unregistered Vehicles</h3>
+            <p>{stats.unregisteredVehicles}</p>
+          </div>
+          <div className="stat-card">
+            <h3>Detected Today</h3>
+            <p>{stats.detectedToday}</p>
+          </div>
+        </div>
+
+        <div className="search-container">
+          <input
+            type="text"
+            placeholder="Search by plate number, owner, or vehicle model..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="search-input"
+          />
+        </div>
+
+        {loading ? (
+          <div className="loading">Loading...</div>
+        ) : error ? (
+          <div className="error">{error}</div>
+        ) : (
+          <>
+            <div className="table-container">
+              <table className="records-table">
+                <thead>
+                  <tr>
+                    <th>Plate Image</th>
+                    <th>Plate Number</th>
+                    <th>Owner</th>
+                    <th>Vehicle Model</th>
+                    <th>Status</th>
+                    <th>Registered At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentRecords.length > 0 ? (
+                    currentRecords.map((record) => (
+                      <tr key={record._id}>
+                        <td>
+                          {record.plate_image && (
+                            <img 
+                              src={`data:image/jpeg;base64,${record.plate_image}`} 
+                              alt={record.plate_number} 
+                              className="plate-thumbnail" 
+                            />
+                          )}
+                        </td>
+                        <td>{record.plate_number}</td>
+                        <td>
+                          {editingRecord === record._id ? (
+                            <input
+                              type="text"
+                              name="owner"
+                              value={editForm.owner}
+                              onChange={handleInputChange}
+                            />
+                          ) : (
+                            record.owner || 'Unknown'
+                          )}
+                        </td>
+                        <td>
+                          {editingRecord === record._id ? (
+                            <input
+                              type="text"
+                              name="model"
+                              value={editForm.model}
+                              onChange={handleInputChange}
+                            />
+                          ) : (
+                            record.model || 'Unknown'
+                          )}
+                        </td>
+                        <td>
+                          {editingRecord === record._id ? (
+                            <label className="status-toggle">
+                              <input
+                                type="checkbox"
+                                name="authorized"
+                                checked={editForm.authorized}
+                                onChange={handleInputChange}
+                              />
+                              Authorized
+                            </label>
+                          ) : (
+                            <span className={`status-badge ${record.authorized ? 'authorized' : 'unauthorized'}`}>
+                              {record.authorized ? 'Authorized' : 'Unauthorized'}
+                            </span>
+                          )}
+                        </td>
+                        <td>{formatDate(record.registered_at)}</td>
+                        <td>
+                          {editingRecord === record._id ? (
+                            <div className="action-buttons">
+                              <button onClick={() => saveEdit(record._id)} className="save-btn">
+                                Save
+                              </button>
+                              <button onClick={cancelEditing} className="cancel-btn">
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="action-buttons">
+                              <button onClick={() => startEditing(record)} className="edit-btn">
+                                Edit
+                              </button>
+                              <button onClick={() => handleDeleteRecord(record._id)} className="delete-btn">
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7">No records found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredRecords.length > recordsPerPage && (
+              <div className="pagination">
+                <button
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  Previous
+                </button>
+                <span>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default VehicleRecordsDashboard;

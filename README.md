@@ -23,5 +23,11 @@ pip install pytesseract
 pip install pymongo[srv] pillow
 
 
+<!-- main one -->
+<!-- Till face and vehicle implementation -->
+<!-- cpu libraries -->
+pip install paddleocr paddlepaddle ultralytics torch torchvision torchaudio deepface flask flask-cors pymongo opencv-python tf-keras faiss-cpu facenet-pytorch pymilvus gunicorn pytesseract pymongo[srv] pillow
+
+
 
 5. run app.py

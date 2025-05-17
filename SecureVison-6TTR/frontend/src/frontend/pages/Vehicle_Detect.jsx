@@ -129,7 +129,7 @@ const VehicleIdentificationSystem = () => {
       const formData = new FormData();
       formData.append("image", imageBlob, "vehicle.jpg");
       
-      const response = await axios.post("http://127.0.0.1:5000/process_vehicle_image", formData, {
+      const response = await axios.post("http://127.0.0.1:5000/vehicle_plate/process_vehicle_image", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
@@ -175,7 +175,7 @@ const VehicleIdentificationSystem = () => {
         plate_image: plateData.plateImage.split(",")[1]
       };
       
-      const response = await axios.post("http://127.0.0.1:5000/register_vehicle", data);
+      const response = await axios.post("http://127.0.0.1:5000/vehicle_plate/register_vehicle", data);
       
       if (response.data.success) {
         window.alert("Vehicle registered successfully!");
@@ -196,7 +196,7 @@ const VehicleIdentificationSystem = () => {
   const handleAuthenticate = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.post("http://127.0.0.1:5000/authenticate_vehicle", {
+      const response = await axios.post("http://127.0.0.1:5000/vehicle_plate/authenticate_vehicle", {
         plate_number: plateData.plateNumber
       });
       

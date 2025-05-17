@@ -1,23 +1,46 @@
-import React from 'react'
-import './Navbar.css'
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import './Navbar.css';
 
 const Navbar = () => {
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  const toggleDropdown = () => {
+    setShowDropdown(!showDropdown);
+  };
+
   return (
     <div>
-          <nav className="navbar">
-        <a href="#" className="logo">
+      <nav className="navbar">
+        <Link to="/" className="logo">
           6TTR
-        </a>
+        </Link>
         <div className="nav-links">
-          <a href="#home">Home</a>
-          <a href="#Records">Records</a>
-          <a href="#services">Services</a>
-          <a href="#"  id="logout-btn">
+          <Link to="/">Home</Link>
+          <div className="dropdown">
+            <button className="dropdown-toggle" onClick={toggleDropdown}>
+              Records
+              <span className="dropdown-arrow">▼</span>
+            </button>
+            {showDropdown && (
+              <div className="dropdown-menu">
+                <Link to="/face-records" onClick={() => setShowDropdown(false)}>
+                  Face Recognition
+                </Link>
+                <Link to="/vehicle-records" onClick={() => setShowDropdown(false)}>
+                  Vehicle Records
+                </Link>
+              </div>
+            )}
+          </div>
+          <Link to="/services">Services</Link>
+          <Link to="/login" id="logout-btn">
             LOGOUT
-          </a>
+          </Link>
         </div>
       </nav>
     </div>
-  )
-}
-export default Navbar
+  );
+};
+
+export default Navbar;

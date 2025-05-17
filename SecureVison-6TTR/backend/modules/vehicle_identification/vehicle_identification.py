@@ -8,6 +8,7 @@ from ultralytics import YOLO
 from paddleocr import PaddleOCR
 from datetime import datetime
 import base64
+from bson.objectid import ObjectId
 
 vehicle_plate_bp = Blueprint('vehicle_plate', __name__)
 
@@ -129,7 +130,8 @@ def register_vehicle():
         'model': model,
         'full_image': full_image,
         'plate_image': plate_image,
-        'registered_at': datetime.utcnow()
+        'registered_at': datetime.utcnow(),
+        'authorized': True  # Default to authorized for newly registered vehicles
     })
     
     return jsonify({
@@ -165,7 +167,8 @@ def authenticate_vehicle():
                 'model': vehicle.get('model', ''),
                 'full_image': vehicle.get('full_image', ''),
                 'plate_image': vehicle.get('plate_image', ''),
-                'registered_at': vehicle['registered_at'].isoformat()
+                'registered_at': vehicle['registered_at'].isoformat(),
+                'authorized': vehicle.get('authorized', False)
             }
         })
     else:
@@ -174,3 +177,109 @@ def authenticate_vehicle():
             'message': 'Access Denied', 
             'plate_number': plate_number.upper()
         })
+
+# ----------------------------------------------------------------------------------------------------
+# vehicle dashboard endpoints
+
+# Route to get all vehicle records
+@vehicle_plate_bp.route("/records", methods=["GET"])
+def get_vehicle_records():
+    try:
+        # Get all vehicle records from MongoDB
+        vehicles = list(registered_vehicles.find())
+        
+        # Convert ObjectId to string and ensure field format consistency
+        for vehicle in vehicles:
+            vehicle["_id"] = str(vehicle["_id"])
+            
+            # Ensure registered_at is ISO format
+            if "registered_at" in vehicle:
+                vehicle["registered_at"] = vehicle["registered_at"].isoformat()
+                
+            # Make sure authorized field exists
+            if "authorized" not in vehicle:
+                vehicle["authorized"] = False
+        
+        return jsonify(vehicles), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to get vehicle detection stats
+@vehicle_plate_bp.route("/stats", methods=["GET"])
+def get_vehicle_stats():
+    try:
+        # Get total vehicles
+        total_vehicles = registered_vehicles.count_documents({})
+        
+        # Get registered vehicles (those with owner)
+        registered_count = registered_vehicles.count_documents({
+            "owner": {"$exists": True, "$ne": None}
+        })
+        
+        # Get unregistered vehicles
+        unregistered_count = registered_vehicles.count_documents({
+            "$or": [
+                {"owner": {"$exists": False}},
+                {"owner": None}
+            ]
+        })
+        
+        # Get vehicles detected today
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        detected_today = registered_vehicles.count_documents({
+            "registered_at": {"$gte": today}
+        })
+        
+        stats = {
+            "totalVehicles": total_vehicles,
+            "registeredVehicles": registered_count,
+            "unregisteredVehicles": unregistered_count,
+            "detectedToday": detected_today
+        }
+        
+        return jsonify(stats), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to delete a vehicle record
+@vehicle_plate_bp.route("/delete/<id>", methods=["DELETE"])
+def delete_vehicle_record(id):
+    try:
+        # Delete the vehicle record
+        result = registered_vehicles.delete_one({"_id": ObjectId(id)})
+        
+        if result.deleted_count == 0:
+            return jsonify({"error": "Vehicle record not found"}), 404
+            
+        return jsonify({"message": "Vehicle record deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to update a vehicle record
+@vehicle_plate_bp.route("/update/<id>", methods=["PUT"])
+def update_vehicle_record(id):
+    try:
+        data = request.json
+        
+        # Check if record exists
+        if not registered_vehicles.find_one({"_id": ObjectId(id)}):
+            return jsonify({"error": "Vehicle record not found"}), 404
+        
+        # Update fields
+        update_data = {}
+        if "owner_name" in data:
+            update_data["owner"] = data["owner_name"]  # Map to correct field
+        if "vehicle_model" in data:
+            update_data["model"] = data["vehicle_model"]  # Map to correct field
+        if "authorized" in data:
+            update_data["authorized"] = data["authorized"]
+        
+        # Update in database
+        registered_vehicles.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": update_data}
+        )
+        
+        return jsonify({"message": "Vehicle record updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
