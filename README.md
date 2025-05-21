@@ -30,4 +30,9 @@ pip install paddleocr paddlepaddle ultralytics torch torchvision torchaudio deep
 
 
 
+
+
+pip install -r requirements.txt
+
+
 5. run app.py

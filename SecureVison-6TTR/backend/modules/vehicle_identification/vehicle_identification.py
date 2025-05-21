@@ -6,7 +6,7 @@ import cv2
 import re
 from ultralytics import YOLO
 from paddleocr import PaddleOCR
-from datetime import datetime
+from datetime import datetime, timedelta
 import base64
 from bson.objectid import ObjectId
 
@@ -23,6 +23,7 @@ MONGO_URI = "mongodb://localhost:27017"
 client = MongoClient(MONGO_URI)
 db = client["Smart_Surveillance"]
 registered_vehicles = db['vehicles']
+vehicle_logs = db['vehicle_logs']  # New collection for vehicle logs
 
 # Helper: Clean and standardize text
 def clean_text(text):
@@ -130,8 +131,7 @@ def register_vehicle():
         'model': model,
         'full_image': full_image,
         'plate_image': plate_image,
-        'registered_at': datetime.utcnow(),
-        'authorized': True  # Default to authorized for newly registered vehicles
+        'registered_at': datetime.utcnow()
     })
     
     return jsonify({
@@ -153,6 +153,24 @@ def authenticate_vehicle():
     # Find vehicle in database
     vehicle = registered_vehicles.find_one({'plate_number': plate_number.upper()})
     
+    # Create authentication log
+    log_data = {
+        'plate_number': plate_number.upper(),
+        'timestamp': datetime.utcnow(),
+        'access_granted': vehicle is not None
+    }
+    
+    # Add additional vehicle info if available
+    if vehicle:
+        log_data.update({
+            'owner': vehicle.get('owner', 'Unknown'),
+            'vehicle_type': vehicle.get('vehicle_type', 'Unknown'),
+            'model': vehicle.get('model', '')
+        })
+    
+    # Save log to MongoDB
+    vehicle_logs.insert_one(log_data)
+    
     if vehicle:
         # Convert MongoDB ObjectId to string for JSON serialization
         vehicle['_id'] = str(vehicle['_id'])
@@ -167,8 +185,7 @@ def authenticate_vehicle():
                 'model': vehicle.get('model', ''),
                 'full_image': vehicle.get('full_image', ''),
                 'plate_image': vehicle.get('plate_image', ''),
-                'registered_at': vehicle['registered_at'].isoformat(),
-                'authorized': vehicle.get('authorized', False)
+                'registered_at': vehicle['registered_at'].isoformat()
             }
         })
     else:
@@ -195,10 +212,6 @@ def get_vehicle_records():
             # Ensure registered_at is ISO format
             if "registered_at" in vehicle:
                 vehicle["registered_at"] = vehicle["registered_at"].isoformat()
-                
-            # Make sure authorized field exists
-            if "authorized" not in vehicle:
-                vehicle["authorized"] = False
         
         return jsonify(vehicles), 200
     except Exception as e:
@@ -216,25 +229,23 @@ def get_vehicle_stats():
             "owner": {"$exists": True, "$ne": None}
         })
         
-        # Get unregistered vehicles
-        unregistered_count = registered_vehicles.count_documents({
-            "$or": [
-                {"owner": {"$exists": False}},
-                {"owner": None}
-            ]
+        # Get detected today
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        detected_today = vehicle_logs.count_documents({
+            "timestamp": {"$gte": today}
         })
         
-        # Get vehicles detected today
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        detected_today = registered_vehicles.count_documents({
-            "registered_at": {"$gte": today}
+        # Get access granted today
+        access_granted_today = vehicle_logs.count_documents({
+            "timestamp": {"$gte": today},
+            "access_granted": True
         })
         
         stats = {
             "totalVehicles": total_vehicles,
             "registeredVehicles": registered_count,
-            "unregisteredVehicles": unregistered_count,
-            "detectedToday": detected_today
+            "detectedToday": detected_today,
+            "accessGrantedToday": access_granted_today
         }
         
         return jsonify(stats), 200
@@ -268,11 +279,9 @@ def update_vehicle_record(id):
         # Update fields
         update_data = {}
         if "owner_name" in data:
-            update_data["owner"] = data["owner_name"]  # Map to correct field
+            update_data["owner"] = data["owner_name"]
         if "vehicle_model" in data:
-            update_data["model"] = data["vehicle_model"]  # Map to correct field
-        if "authorized" in data:
-            update_data["authorized"] = data["authorized"]
+            update_data["model"] = data["vehicle_model"]
         
         # Update in database
         registered_vehicles.update_one(
@@ -281,5 +290,52 @@ def update_vehicle_record(id):
         )
         
         return jsonify({"message": "Vehicle record updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Route to get vehicle logs
+@vehicle_plate_bp.route("/logs", methods=["GET"])
+def get_vehicle_logs():
+    try:
+        # Get filter date from query param
+        filter_date = request.args.get('date')
+        
+        # Prepare query
+        query = {}
+        
+        if filter_date:
+            try:
+                # Parse the date string to datetime
+                filter_date = datetime.strptime(filter_date, '%Y-%m-%d')
+                next_day = filter_date + timedelta(days=1)
+                
+                # Filter logs for the specified date
+                query = {
+                    "timestamp": {
+                        "$gte": filter_date,
+                        "$lt": next_day
+                    }
+                }
+            except ValueError:
+                return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+        
+        # Get logs from database
+        logs = list(vehicle_logs.find(query).sort("timestamp", -1))
+        
+        # Format logs for JSON response
+        formatted_logs = []
+        for log in logs:
+            formatted_log = {
+                "_id": str(log["_id"]),
+                "plate_number": log["plate_number"],
+                "timestamp": log["timestamp"].isoformat(),
+                "access_granted": log["access_granted"],
+                "owner": log.get("owner", "Unknown"),
+                "vehicle_type": log.get("vehicle_type", "Unknown"),
+                "model": log.get("model", "")
+            }
+            formatted_logs.append(formatted_log)
+        
+        return jsonify(formatted_logs), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500

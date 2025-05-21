@@ -1,0 +1,30 @@
+# OCR and Deep Learning
+paddleocr
+paddlepaddle
+ultralytics
+torch
+torchvision
+torchaudio
+tensorflow
+tf-keras
+facenet-pytorch
+
+# Face Recognition and Analysis
+deepface
+pytesseract
+
+# Image Processing and Utilities
+opencv-python
+pillow
+
+# Flask and CORS
+flask
+flask-cors
+gunicorn
+
+# MongoDB
+pymongo[srv]
+
+# Vector Search Libraries
+faiss-cpu
+pymilvus

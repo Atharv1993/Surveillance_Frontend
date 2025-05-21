@@ -1,97 +1,167 @@
+/* Navbar.css - Styling for the 6TTR Navigation Bar */
+:root {
+--primary-color: #2563eb;
+--primary-hover: #1d4ed8;
+--text-color: #334155;
+--light-text: #64748b;
+--card-bg: #ffffff;
+--border-color: #e2e8f0;
+--shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+--transition: all 0.2s ease;
+}
 .navbar {
-  background-color: #1a1a1a;
-  color: #fff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+background-color: var(--card-bg);
+box-shadow: var(--shadow);
+padding: 0.75rem 2rem;
+display: flex;
+justify-content: space-between;
+align-items: center;
+position: sticky;
+top: 0;
+z-index: 1000;
 }
-
 .logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #fff;
-  text-decoration: none;
+font-size: 1.5rem;
+font-weight: 700;
+color: var(--primary-color);
+text-decoration: none;
+letter-spacing: 0.025em;
+transition: var(--transition);
 }
-
+.logo:hover {
+color: var(--primary-hover);
+transform: scale(1.05);
+}
 .nav-links {
-  display: flex;
-  align-items: center;
-  gap: 2rem;
+display: flex;
+align-items: center;
+gap: 2rem;
 }
-
 .nav-links a {
-  color: #fff;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.3s;
+color: var(--text-color);
+text-decoration: none;
+font-size: 0.95rem;
+font-weight: 500;
+padding: 0.5rem 0;
+position: relative;
+transition: var(--transition);
 }
-
 .nav-links a:hover {
-  color: #03a9f4;
+color: var(--primary-color);
 }
-
-#logout-btn {
-  background-color: #f44336;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+.nav-links a::after {
+content: '';
+position: absolute;
+width: 0;
+height: 2px;
+background-color: var(--primary-color);
+bottom: 0;
+left: 0;
+transition: var(--transition);
 }
-
-#logout-btn:hover {
-  background-color: #d32f2f;
+.nav-links a:hover::after {
+width: 100%;
 }
-
-/* Dropdown styles */
+/* Dropdown styling */
 .dropdown {
-  position: relative;
-  display: inline-block;
+position: relative;
 }
-
 .dropdown-toggle {
-  background: none;
-  border: none;
-  color: #fff;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0;
+background: none;
+border: none;
+font-size: 0.95rem;
+font-weight: 500;
+color: var(--text-color);
+cursor: pointer;
+display: flex;
+align-items: center;
+gap: 0.5rem;
+padding: 0.5rem 0;
+transition: var(--transition);
 }
-
 .dropdown-toggle:hover {
-  color: #03a9f4;
+color: var(--primary-color);
 }
-
 .dropdown-arrow {
-  font-size: 0.7rem;
-  margin-left: 5px;
+font-size: 0.75rem;
+transition: var(--transition);
 }
-
+.dropdown:hover .dropdown-arrow {
+transform: rotate(180deg);
+}
 .dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background-color: #2a2a2a;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-  padding: 0.5rem 0;
-  min-width: 180px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
+position: absolute;
+top: 100%;
+left: 0;
+background-color: var(--card-bg);
+border-radius: 8px;
+box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+min-width: 180px;
+padding: 0.75rem 0;
+z-index: 1000;
+animation: dropdown-appear 0.2s ease;
 }
-
+@keyframes dropdown-appear {
+from {
+opacity: 0;
+transform: translateY(-10px);
+}
+to {
+opacity: 1;
+transform: translateY(0);
+}
+}
 .dropdown-menu a {
-  padding: 0.7rem 1rem;
-  display: block;
-  width: 100%;
-  text-align: left;
+display: block;
+padding: 0.5rem 1.25rem;
+white-space: nowrap;
 }
-
 .dropdown-menu a:hover {
-  background-color: #3a3a3a;
+background-color: rgba(37, 99, 235, 0.05);
+}
+/* Logout button styling */
+#logout-btn {
+background-color: var(--primary-color);
+color: white;
+padding: 0.5rem 1.25rem;
+border-radius: 6px;
+font-weight: 600;
+transition: var(--transition);
+}
+#logout-btn:hover {
+background-color: var(--primary-hover);
+transform: translateY(-2px);
+}
+#logout-btn::after {
+display: none;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+.navbar {
+padding: 0.75rem 1rem;
+}
+.nav-links {
+gap: 1rem;
+}
+#logout-btn {
+padding: 0.4rem 0.75rem;
+font-size: 0.85rem;
+}
+}
+@media (max-width: 576px) {
+.navbar {
+flex-direction: column;
+padding: 0.75rem;
+}
+.logo {
+margin-bottom: 0.75rem;
+}
+.nav-links {
+width: 100%;
+justify-content: space-between;
+}
+.dropdown-menu {
+left: 50%;
+transform: translateX(-50%);
+}
 }

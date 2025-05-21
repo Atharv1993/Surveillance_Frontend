@@ -3,11 +3,10 @@ import cv2
 import faiss
 import numpy as np
 import os
-import csv
 import json
 import pandas as pd
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import threading
 import time
 
@@ -22,6 +21,7 @@ from modules.camera_manager.camera_manager import camera_manager
 # MongoDB Connection
 from pymongo import MongoClient
 from bson.binary import Binary
+from bson.objectid import ObjectId
 import base64
 from io import BytesIO
 from PIL import Image
@@ -32,12 +32,8 @@ MONGO_URI = "mongodb://localhost:27017"
 client = MongoClient(MONGO_URI)
 db = client["Smart_Surveillance"]
 face_collection = db["face_metadata"]
-embeddings_collection = db["face_embeddings"]  # New collection for embeddings
-
-# Directories
-attendance_directory = "Attendance"
-if not os.path.exists(attendance_directory):
-    os.makedirs(attendance_directory)
+embeddings_collection = db["face_embeddings"]  # Collection for embeddings
+attendance_collection = db["User_Logs"]  # New collection for attendance logs
 
 # Initialize FAISS with 512D embeddings
 embedding_dim = 512
@@ -77,16 +73,14 @@ def get_date_today():
     return datetime.now().strftime("%Y-%m-%d")
 
 def save_attendance(name, roll):
-    filename = f"{attendance_directory}/Attendance-{get_date_today()}.csv"
-    if not os.path.isfile(filename):
-        df = pd.DataFrame(columns=["Name", "Roll", "Time"])
-    else:
-        df = pd.read_csv(filename)
-    
-    if roll not in df["Roll"].values:
-        now = datetime.now().strftime("%H:%M:%S")
-        df = pd.concat([df, pd.DataFrame([[name, roll, now]], columns=["Name", "Roll", "Time"])]).reset_index(drop=True)
-        df.to_csv(filename, index=False)
+    """Save attendance to MongoDB instead of CSV"""
+    # If no entry exists for today, create a new one
+    attendance_collection.insert_one({
+        "name": name,
+        "roll": roll,
+        "timestamp": datetime.now(),
+        "date": get_date_today()
+    })
 
 def extract_face_embedding(image):
     try:
@@ -230,14 +224,15 @@ def authenticate():
         recognized_key = list(embeddings_db.keys())[I[0][0]]
         name, roll = recognized_key.split("_")
 
+        # Save attendance to MongoDB
         save_attendance(name, roll)
 
         return jsonify({
-                "success": True,
-                "status": "Face recognized",
-                "name": name,
-                "roll": roll
-            })
+            "success": True,
+            "status": "Face recognized",
+            "name": name,
+            "roll": roll,
+        })
 
     return jsonify({"success": False, "message": "Face not recognized"})
 
@@ -245,22 +240,33 @@ def authenticate():
 @face_recognition_bp.route("/todayattendance", methods=["GET"])
 def get_todays_attendance():
     try:
-        attendance_file = f"{attendance_directory}/Attendance-{get_date_today()}.csv"
-        if not os.path.exists(attendance_file):
+        # Get today's start and end date for MongoDB query
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        
+        # Query MongoDB for today's attendance records
+        attendance_records = list(attendance_collection.find({
+            "timestamp": {"$gte": today_start, "$lt": today_end}
+        }))
+        
+        if not attendance_records:
             return jsonify({
                 "success": False,
                 "message": "No attendance records for today"
             })
         
-        attendance_data = []
-        with open(attendance_file, mode='r') as file:
-            reader = csv.reader(file)
-            next(reader)
-            attendance_data = [row for row in reader]
-        print(attendance_data)
+        # Format the attendance records
+        formatted_records = []
+        for record in attendance_records:
+            formatted_records.append([
+                record["name"],
+                record["roll"],
+                record["timestamp"].strftime("%H:%M:%S")
+            ])
+        
         return jsonify({
             "success": True,
-            "attendance": attendance_data
+            "attendance": formatted_records
         })
     
     except Exception as e:
@@ -393,9 +399,6 @@ def group_markattendance():
 
 # --------------------------------------------------------------------------------------------------------
 # DashBoard Routes
-from datetime import datetime, timedelta
-import numpy as np
-from bson.objectid import ObjectId
 
 # Route to get all face records
 @face_recognition_bp.route("/records", methods=["GET"])
@@ -421,10 +424,12 @@ def get_face_stats():
         # Get total records
         total_records = face_collection.count_documents({})
         
-        # Get attendance today (count faces detected today)
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        attendance_today = face_collection.count_documents({
-            "last_detected": {"$gte": today}
+        # Get attendance today (count unique users who attended today)
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = today_start + timedelta(days=1)
+        
+        attendance_today = attendance_collection.count_documents({
+            "timestamp": {"$gte": today_start, "$lt": today_end}
         })
         
         # Count known faces (where name is not "Unknown")
@@ -432,10 +437,12 @@ def get_face_stats():
             "name": {"$ne": "Unknown"}
         })
         
-        # Count unknown faces
-        unknown_faces = face_collection.count_documents({
-            "name": "Unknown"
-        })
+        # Only get unknown_faces count if there are actually any unknown faces
+        unknown_faces = 0
+        if face_collection.count_documents({"name": "Unknown"}) > 0:
+            unknown_faces = face_collection.count_documents({
+                "name": "Unknown"
+            })
         
         stats = {
             "totalRecords": total_records,
@@ -445,6 +452,56 @@ def get_face_stats():
         }
         
         return jsonify(stats), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# New route to get attendance logs with date filtering
+@face_recognition_bp.route("/attendance/logs", methods=["GET"])
+def get_attendance_logs():
+    try:
+        # Get date filter parameters
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        
+        # Parse dates or use defaults
+        try:
+            if start_date_str:
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").replace(hour=0, minute=0, second=0)
+            else:
+                # Default to today
+                start_date = datetime.now().replace(hour=0, minute=0, second=0)
+                
+            if end_date_str:
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            else:
+                # Default to today end
+                end_date = start_date.replace(hour=23, minute=59, second=59)
+        except ValueError:
+            return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+            
+        # Query MongoDB for attendance logs within date range
+        query = {"timestamp": {"$gte": start_date, "$lte": end_date}}
+        
+        # Get all attendance logs in the date range
+        logs = list(attendance_collection.find(query).sort("timestamp", -1))
+        
+        # Format the logs for the response
+        formatted_logs = []
+        for log in logs:
+            formatted_logs.append({
+                "_id": str(log["_id"]),
+                "name": log["name"],
+                "roll": log["roll"],
+                "timestamp": log["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+                "date": log["date"] if "date" in log else log["timestamp"].strftime("%Y-%m-%d")
+            })
+        
+        return jsonify({
+            "success": True,
+            "logs": formatted_logs,
+            "count": len(formatted_logs)
+        }), 200
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -494,8 +551,8 @@ def update_face_record(id):
         update_data = {}
         if "name" in data:
             update_data["name"] = data["name"]
-        if "role" in data:
-            update_data["role"] = data["role"]
+        if "id_type" in data:
+            update_data["id_type"] = data["id_type"]
         
         # Update in face_collection
         face_collection.update_one(
@@ -516,3 +573,5 @@ def update_face_record(id):
         return jsonify({"message": "Face record updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
