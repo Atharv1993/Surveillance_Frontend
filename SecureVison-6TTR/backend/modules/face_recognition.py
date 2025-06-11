@@ -101,8 +101,6 @@ def extract_face_embedding(image):
         print(f"Face embedding extraction error after all attempts: {e}")
         return None
 
-@face_recognition_bp.route('/extract-id', methods=['POST'])
-def extract_id():
     data = request.json
     id_type = data.get("id_type")  # Accept id_type as input
     id_image_base64 = data.get("id_image")  # Captured ID as base64

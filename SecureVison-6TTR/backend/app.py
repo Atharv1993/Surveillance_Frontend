@@ -9,6 +9,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 from modules.camera_manager.camera_manager import camera_manager
 from modules.face_recognition import face_recognition_bp
 from modules.vehicle_identification.vehicle_identification import vehicle_plate_bp
+from modules.human_detection import human_detection_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -18,6 +19,7 @@ camera_manager.set_camera_index(0)  # Set the camera index to 1 (or your laptop'
 # Register blueprints
 app.register_blueprint(face_recognition_bp, url_prefix='/face_recog')
 app.register_blueprint(vehicle_plate_bp, url_prefix='/vehicle_plate')
+app.register_blueprint(human_detection_bp)
 
 # Clean up camera resources on application exit
 def cleanup_resources():
@@ -27,4 +29,5 @@ def cleanup_resources():
 atexit.register(cleanup_resources)
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    # app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5000, threaded=True)
